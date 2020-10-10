@@ -97,7 +97,7 @@ public abstract class DTGenerator extends AbstractSopcGenerator {
 				} break;
 				case OVERLAY: {
 					DTNode fragmentNode = new DTNode("fragment@0");
-					fragmentNode.addProperty(new DTProperty("target", new DTPropTargetVal(bi.getOverlayTarget())));
+					fragmentNode.addProperty(new DTProperty("target-path", new DTPropTargetVal(bi.getOverlayTarget())));
 					sopcNode = new DTNode("__overlay__");
 					if(bi.getFirmwareName().equals(""))
 					{

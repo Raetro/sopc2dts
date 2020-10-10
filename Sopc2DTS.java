@@ -120,7 +120,7 @@ public class Sopc2DTS implements LogListener {
 		vOptions.add(new CommandLineOption("no-timestamp", null, excludeTimeStamp, false, false, "Don't add a timestamp to generated files", null));
 		vOptions.add(new CommandLineOption("input", 	"i", inputFileName, 	true, true, "The sopcinfo file (optional in gui mode)", "sopcinfo file"));
 		vOptions.add(new CommandLineOption("output",	"o", outputFileName,	true, false,"The output filename","filename"));
-		vOptions.add(new CommandLineOption("overlay-target",null, overlayTarget,true, false,"Target node for dt-overlay","node-label"));
+		vOptions.add(new CommandLineOption("overlay-target",null, overlayTarget,true, false,"Target PATH for dt-overlay","node-label"));
 		vOptions.add(new CommandLineOption("firmware-name",null, firmwareName,true, false,"DTS overlay FPGA configuration RBF name, if not specified we assume external configuration","node-label"));
 		vOptions.add(new CommandLineOption("pov", 		"p", pov,		 		true, false,"The point of view to generate from. Defaults to the first cpu found", "component name"));
 		vOptions.add(new CommandLineOption("pov-type", 	null, povType,			true, false,"The point of view device type", "{cpu,pci,overlay}"));
