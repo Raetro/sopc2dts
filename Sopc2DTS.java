@@ -59,6 +59,9 @@ public class Sopc2DTS implements LogListener {
 	protected CLParameter bridgeRemoval = new CLParameter("balanced");
 	protected CLParameter outputFileName = new CLParameter("");
 	protected CLParameter outputType = new CLParameter("dts");
+	protected CLParameter overlayTarget = new CLParameter("");
+	protected CLParameter externalFpgaConfig = new CLParameter("");
+	protected CLParameter firmwareName = new CLParameter("");
 	protected CLParameter pov = new CLParameter("");
 	protected CLParameter povType = new CLParameter("cpu");
 	protected CLParameter bootargs = new CLParameter("");
@@ -117,8 +120,10 @@ public class Sopc2DTS implements LogListener {
 		vOptions.add(new CommandLineOption("no-timestamp", null, excludeTimeStamp, false, false, "Don't add a timestamp to generated files", null));
 		vOptions.add(new CommandLineOption("input", 	"i", inputFileName, 	true, true, "The sopcinfo file (optional in gui mode)", "sopcinfo file"));
 		vOptions.add(new CommandLineOption("output",	"o", outputFileName,	true, false,"The output filename","filename"));
+		vOptions.add(new CommandLineOption("overlay-target",null, overlayTarget,true, false,"Target node for dt-overlay","node-label"));
+		vOptions.add(new CommandLineOption("firmware-name",null, firmwareName,true, false,"DTS overlay FPGA configuration RBF name, if not specified we assume external configuration","node-label"));
 		vOptions.add(new CommandLineOption("pov", 		"p", pov,		 		true, false,"The point of view to generate from. Defaults to the first cpu found", "component name"));
-		vOptions.add(new CommandLineOption("pov-type", 	null, povType,			true, false,"The point of view device type", "{cpu,pci}"));
+		vOptions.add(new CommandLineOption("pov-type", 	null, povType,			true, false,"The point of view device type", "{cpu,pci,overlay}"));
 		vOptions.add(new CommandLineOption("reset",		null, showReset,		false,false,"Show reset interfaces in graph", null));
 		vOptions.add(new CommandLineOption("sort", 		"s", sort,		 		true, false,"Sort components by", "{none,address,name,label}"));
 		vOptions.add(new CommandLineOption("streaming",	null, showStreaming,	false,false,"Show streaming interfaces in graph", null));
@@ -162,6 +167,8 @@ public class Sopc2DTS implements LogListener {
 			bInfo = new BoardInfo();
 		}
 		SICBridge.setRemovalStrategy(bridgeRemoval.value);
+		bInfo.setOverlayTarget(overlayTarget.value);
+		bInfo.setFirmwareName(firmwareName.value);
 		if(pov.value.length()>0)
 		{
 			bInfo.setPov(pov.value);

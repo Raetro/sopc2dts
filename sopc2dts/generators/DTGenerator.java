@@ -21,6 +21,7 @@ package sopc2dts.generators;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Vector;
 
 import sopc2dts.Logger;
@@ -47,6 +48,7 @@ import sopc2dts.lib.devicetree.DTPropByteVal;
 import sopc2dts.lib.devicetree.DTPropHexNumVal;
 import sopc2dts.lib.devicetree.DTPropNumVal;
 import sopc2dts.lib.devicetree.DTPropPHandleVal;
+import sopc2dts.lib.devicetree.DTPropTargetVal;
 import sopc2dts.lib.devicetree.DTPropStringVal;
 import sopc2dts.lib.devicetree.DTPropVal;
 import sopc2dts.lib.devicetree.DTProperty;
@@ -58,87 +60,100 @@ public abstract class DTGenerator extends AbstractSopcGenerator {
 		super(s, isText);
 	}
 
-	protected synchronized DTNode getDTOutput(BoardInfo bi)
+	protected synchronized DTNode getDTOutput(BoardInfo bi) {
+		return getDTOutput(bi, false);
+	}
+
+	protected synchronized DTNode getDTOutput(BoardInfo bi, boolean doAddSymbolsNode)
 	{
 		vHandled = new Vector<BasicComponent>();
 		DTNode rootNode = new DTNode("/");
 		BasicComponent povComponent = getPovComponent(bi);
-		DTNode sopcNode;
-		DTNode chosenNode;
-		DTNode clocksNode = null;
 		if(povComponent!=null)
 		{
+			DTNode sopcNode = null;
+			DTNode chosenNode = null;
+			DTNode clocksNode = null;
 			int addrCells = povComponent.getInterfaces(SystemDataType.MEMORY_MAPPED, true).firstElement().getPrimaryWidth();
 			int sizeCells = povComponent.getInterfaces(SystemDataType.MEMORY_MAPPED, true).firstElement().getSecondaryWidth();
-			if(bi.getPovType().equals(PovType.CPU))
-			{
-				DTNode cpuNode = getCpuNodes(bi, povComponent);
-				DTNode memNode = getMemoryNode(bi, povComponent, addrCells, sizeCells);
-				DTNode aliasNode = null;
-				sopcNode = new DTNode("sopc@0", "sopc0");
-				chosenNode = getChosenNode(bi);
-				clocksNode = getClocksNode(bi);
-				rootNode.addProperty(new DTProperty("model","ALTR," + sys.getSystemName()));
-				rootNode.addProperty(new DTProperty("compatible","ALTR," + sys.getSystemName()));
-				rootNode.addProperty(new DTProperty("#address-cells", (long)addrCells));
-				rootNode.addProperty(new DTProperty("#size-cells",(long)sizeCells));
-				Vector<Parameter> vAliases = bi.getAliases();
-				if (vAliases.size() > 0) {
-					aliasNode = new DTNode("aliases");
-					for (Parameter p : vAliases) {
-						aliasNode.addProperty(new DTProperty(p.getName(),p.getValue()));
+			switch(bi.getPovType()) {
+				case CPU: {
+					DTNode cpuNode = getCpuNodes(bi, povComponent);
+					DTNode memNode = getMemoryNode(bi, povComponent, addrCells, sizeCells);
+					sopcNode = new DTNode("sopc@0", "sopc0");
+					DTNode aliasNode = getAliasNode(bi, povComponent,"/" + sopcNode.getName());
+					chosenNode = getChosenNode(bi);
+					clocksNode = getClocksNode(bi);
+					rootNode.addProperty(new DTProperty("model","ALTR," + sys.getSystemName()));
+					rootNode.addProperty(new DTProperty("compatible","ALTR," + sys.getSystemName()));
+					rootNode.addProperty(new DTProperty("#address-cells", (long)addrCells));
+					rootNode.addProperty(new DTProperty("#size-cells",(long)sizeCells));
+					if(aliasNode!=null) {
+					    rootNode.addChild(aliasNode);
 					}
-				}
-				vAliases = bi.getAliasRefs();
-				if (vAliases.size() > 0) {
-					if(aliasNode==null) {
-						aliasNode = new DTNode("aliases");
+					rootNode.addChild(cpuNode);
+					rootNode.addChild(memNode);
+					sopcNode.addProperty(new DTProperty("device_type", "soc"));
+				} break;
+				case OVERLAY: {
+					DTNode fragmentNode = new DTNode("fragment@0");
+					fragmentNode.addProperty(new DTProperty("target", new DTPropTargetVal(bi.getOverlayTarget())));
+					sopcNode = new DTNode("__overlay__");
+					if(bi.getFirmwareName().equals(""))
+					{
+						sopcNode.addProperty(new DTProperty("external-fpga-config"));
+					}else{
+						sopcNode.addProperty(new DTProperty("firmware-name", new DTPropStringVal(bi.getFirmwareName())));
 					}
-					for (Parameter p : vAliases) {
-						BasicComponent slave = sys.getComponentByName(p.getValue());
-						if(slave!=null) {
-							Vector<Connection> vConn = sys.getConnectionPath(povComponent, slave,SystemDataType.MEMORY_MAPPED);
-							String path="/" + sopcNode.getName();
-							for(Connection c : vConn) {
-								path += "/" + c.getSlaveModule().getScd().getGroup() + "@" + DTHelper.longArrToHexString(c.getConnValue());
-							}
-							if(path.length()>0) {
-								aliasNode.addProperty(new DTProperty(p.getName(),path));								
-							} else {
-								Logger.logln(this, "Failed to find component '" + p.getValue() +"' path for alias: " + p.getName(), LogLevel.WARNING);
-							}
-						} else {
-							Logger.logln(this, "Failed to find component '" + p.getValue() +"' for alias: " + p.getName(), LogLevel.WARNING);
-						}
-					}
+					fragmentNode.addChild(sopcNode);
+					rootNode.addChild(fragmentNode);
+				} break;
+				case PCI: {
+					sopcNode = rootNode;
+					DTProperty rangeProp = new DTProperty("ranges");
+					rangeProp.addHexValues(new long[] {
+							0x00000000,
+							0x02000000, 0, 0x90000000,
+							0x10000000,
+					});
+					sopcNode.addProperty(rangeProp);
 				}
-				
-				if(aliasNode!=null) {
-				    rootNode.addChild(aliasNode);
-				}
-				rootNode.addChild(cpuNode);
-				rootNode.addChild(memNode);
-				sopcNode.addProperty(new DTProperty("device_type", "soc"));
-			} else {
-				sopcNode = rootNode;
-				chosenNode = null;
 			}
 			sopcNode = getSlavesFor(bi, povComponent, sopcNode);
-			sopcNode.addProperty(new DTProperty("ranges"));
 			sopcNode.addProperty(new DTProperty("#address-cells",(long)addrCells));
 			sopcNode.addProperty(new DTProperty("#size-cells",(long)sizeCells));
-			Vector<String> vCompat = new Vector<String>();
-			vCompat.add("ALTR,avalon");
-			vCompat.add("simple-bus");
-			sopcNode.addProperty(new DTProperty("compatible", vCompat.toArray(new String[]{})));
-			sopcNode.addProperty(new DTProperty("bus-frequency", povComponent.getClockRate()));
+			
+			if(bi.getPovType().equals(PovType.OVERLAY)) {
+				DTProperty rangeProp = new DTProperty("ranges");
+				rangeProp.addHexValues(new long[] {
+					0, 0x0, 0xc0000000, 0x20000000,
+					1, 0x0, 0xff200000, 0x00200000,
+				});
+				rangeProp.setNumValuesPerRow(4);
+				sopcNode.addProperty(rangeProp);
+			}else{
+				Vector<String> vCompat = new Vector<String>();
+				vCompat.add("ALTR,avalon");
+				vCompat.add("simple-bus");
+				sopcNode.addProperty(new DTProperty("compatible", vCompat.toArray(new String[]{})));
+				sopcNode.addProperty(new DTProperty("bus-frequency", povComponent.getClockRate()));
+				rootNode.addChild(clocksNode);
+			}			
+
 			if(bi.getPovType().equals(PovType.CPU))
 			{
-				if(clocksNode!=null) {
-					rootNode.addChild(clocksNode);
-				}
 				rootNode.addChild(sopcNode);
-				rootNode.addChild(chosenNode);
+			}
+			rootNode.addChild(chosenNode);
+			if(doAddSymbolsNode) {
+				HashMap<String,String> symbolMap = getSymbols(bi, rootNode, "");
+				if(!symbolMap.isEmpty()) {
+					DTNode symbolsNode = new DTNode("__symbols__");
+					for(String key : symbolMap.keySet()) {
+						symbolsNode.addProperty(new DTProperty(key, symbolMap.get(key)));
+					}
+					rootNode.addChild(symbolsNode);
+				}
 			}
 		}
 		doDTAppend(rootNode,bi);
@@ -251,6 +266,41 @@ public abstract class DTGenerator extends AbstractSopcGenerator {
 		}
 	}
 
+	DTNode getAliasNode(BoardInfo bi, BasicComponent povComp, String basePath)
+	{
+		DTNode aliasNode = null;
+		Vector<Parameter> vAliases = bi.getAliases();
+		if (vAliases.size() > 0) {
+			aliasNode = new DTNode("aliases");
+			for (Parameter p : vAliases) {
+				aliasNode.addProperty(new DTProperty(p.getName(),p.getValue()));
+			}
+		}
+		vAliases = bi.getAliasRefs();
+		if (vAliases.size() > 0) {
+			if(aliasNode==null) {
+				aliasNode = new DTNode("aliases");
+			}
+			for (Parameter p : vAliases) {
+				BasicComponent slave = sys.getComponentByName(p.getValue());
+				if(slave!=null) {
+					Vector<Connection> vConn = sys.getConnectionPath(povComp, slave,SystemDataType.MEMORY_MAPPED);
+					String path=basePath;
+					for(Connection c : vConn) {
+						path += "/" + c.getSlaveModule().getScd().getGroup() + "@" + DTHelper.longArrToHexString(c.getConnValue());
+					}
+					if(path.length()>0) {
+						aliasNode.addProperty(new DTProperty(p.getName(),path));
+					} else {
+						Logger.logln(this, "Failed to find component '" + p.getValue() +"' path for alias: " + p.getName(), LogLevel.WARNING);
+					}
+				} else {
+					Logger.logln(this, "Failed to find component '" + p.getValue() +"' for alias: " + p.getName(), LogLevel.WARNING);
+				}
+			}
+		}
+		return aliasNode;
+	}
 	DTNode getChosenNode(BoardInfo bi)
 	{
 		DTNode chosenNode = new DTNode("chosen");
@@ -395,7 +445,7 @@ public abstract class DTGenerator extends AbstractSopcGenerator {
 			return memNode;
 		}
 	}
-	
+
 	DTNode getSlavesFor(BoardInfo bi, BasicComponent masterComp, DTNode masterNode)
 	{
 		if(masterComp!=null)
@@ -423,6 +473,19 @@ public abstract class DTGenerator extends AbstractSopcGenerator {
 			}
 		}
 		return masterNode;
+	}
+	HashMap<String,String> getSymbols(BoardInfo bi, DTNode rootNode, String basePath)
+	{
+		HashMap<String,String> symbolMap = new HashMap<String, String>();
+		for(DTNode child : rootNode.getChildren()) {
+			if(child.getLabel()!=null) {
+				symbolMap.put(child.getLabel(), basePath + "/" + child.getName());
+			}
+			if(!child.getChildren().isEmpty()) {
+				symbolMap.putAll(getSymbols(bi, child, basePath + "/" + child.getName()));
+			}
+		}
+		return symbolMap;
 	}
 	protected static void sortSlaves(Vector<Connection> vConn, final SortType sort) {
 		if(!sort.equals(SortType.NONE)) {

@@ -47,7 +47,7 @@ import sopc2dts.lib.components.BasicComponent;
 import sopc2dts.lib.components.base.FlashPartition;
 
 public class BoardInfo implements ContentHandler {
-	public enum PovType { CPU, PCI };
+	public enum PovType { CPU, PCI, OVERLAY };
 	public enum SortType { NONE, ADDRESS, NAME, LABEL };
 	public enum RangesStyle { NONE, FOR_BRIDGE, FOR_EACH_CHILD };
 	public enum AltrStyle { AUTO, FORCE_UPPER, FORCE_LOWER };
@@ -60,6 +60,7 @@ public class BoardInfo implements ContentHandler {
 	boolean showConduits = false;
 	boolean showResets = false;
 	boolean showStreaming = false;
+	boolean externalFpgaConfig = true;
 	Vector<FlashPartition> vPartitions;
 	Vector<String> vMemoryNodes;
 	Vector<BoardInfoComponent> vBics = new Vector<BoardInfoComponent>();
@@ -71,6 +72,8 @@ public class BoardInfo implements ContentHandler {
 	String bootArgs;
 	BoardInfoComponent currBic;
 	private AltrStyle altrStyle = AltrStyle.AUTO;
+	private String overlayTarget = "";
+	private String firmwareName = "";
 	private String pov = "";
 	private PovType povType = PovType.CPU;
 	private RangesStyle rangesStyle = RangesStyle.FOR_EACH_CHILD;
@@ -352,6 +355,8 @@ public class BoardInfo implements ContentHandler {
 				povTypeName.equalsIgnoreCase("pcie"))
 		{
 			setPovType(PovType.PCI);
+		} else if(povTypeName.equalsIgnoreCase("overlay")) {
+			setPovType(PovType.OVERLAY);
 		}
 	}
 	public void setRangesStyle(RangesStyle rangesStyle) {
@@ -381,6 +386,12 @@ public class BoardInfo implements ContentHandler {
 		} else {
 			setSortType(SortType.NONE);
 		}
+	}
+	public String getOverlayTarget() {
+		return overlayTarget;
+	}
+	public String getFirmwareName() {
+		return firmwareName;
 	}
 	public void setPartitionsForchip(String instanceName, Vector<FlashPartition> vParts) {
 		mFlashPartitions.put(instanceName, vParts);
@@ -540,5 +551,11 @@ public class BoardInfo implements ContentHandler {
 	}
 	public void setIncludeTime(boolean includeTime) {
 		this.includeTime = includeTime;
+	}
+	public void setOverlayTarget(String overlayTarget) {
+		this.overlayTarget = overlayTarget;
+	}
+	public void setFirmwareName(String firmwareName) {
+		this.firmwareName = firmwareName;
 	}
 }
