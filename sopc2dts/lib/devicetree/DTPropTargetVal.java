@@ -57,7 +57,7 @@ public class DTPropTargetVal extends DTPropVal {
 	}
 	@Override
 	public String toString() {
-		return '&' + label;
+		return label;
 	}
 
 }

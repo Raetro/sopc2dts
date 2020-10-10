@@ -80,6 +80,7 @@ public class Sopc2DTS implements LogListener {
 	protected static final String programName = "sopc2dts";
 	private static String programVersion = Package.getPackage("sopc2dts").getImplementationVersion();;
 	private Vector<String> vInfoFileNames = new Vector<String>();
+	private Vector<String> vdtsiFileNames = new Vector<String>();
 	private Vector<String> vExtraComponentLibs = new Vector<String>();
 
 	/**
